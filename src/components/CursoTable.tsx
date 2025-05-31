@@ -68,58 +68,69 @@ export default function CursoTable({ cursos, onUpdate }: CursoTableProps) {
   };
 
   return (
-    <div className="overflow-x-auto">
-      <table className="min-w-full bg-white border rounded-lg">
-        <thead className="bg-gray-50">
+    <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-md">
+      <table className="min-w-full divide-y divide-gray-200">
+        <thead className="bg-gray-800">
           <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
               Nombre del Curso
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
               Versión
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
               Fecha de Entrega
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
               Archivo
             </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
               Acciones
             </th>
           </tr>
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {cursos.map((curso) => (
-            <tr key={curso.id}>
-              <td className="px-6 py-4 whitespace-nowrap">{curso.nombre_curso}</td>
-              <td className="px-6 py-4 whitespace-nowrap">{curso.version}</td>
-              <td className="px-6 py-4 whitespace-nowrap">
+            <tr key={curso.id} className="hover:bg-gray-50">
+              <td className="px-6 py-4 text-sm text-gray-900 font-medium">
+                {curso.nombre_curso}
+              </td>
+              <td className="px-6 py-4 text-sm text-gray-900">
+                {curso.version}
+              </td>
+              <td className="px-6 py-4 text-sm text-gray-900">
                 {format(new Date(curso.fecha_entrega), 'dd/MM/yyyy', {
                   locale: es,
                 })}
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
+              <td className="px-6 py-4 text-sm">
                 <button
                   onClick={() =>
                     downloadFile(curso.archivo_url, curso.archivo_nombre)
                   }
-                  className="text-blue-600 hover:text-blue-800"
+                  className="text-blue-600 hover:text-blue-800 font-medium hover:underline"
                 >
                   {curso.archivo_nombre}
                 </button>
               </td>
-              <td className="px-6 py-4 whitespace-nowrap">
+              <td className="px-6 py-4 text-sm">
                 <button
                   onClick={() => handleDelete(curso.id, curso.archivo_url)}
                   disabled={loading}
-                  className="text-red-600 hover:text-red-800 disabled:opacity-50"
+                  className="text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 px-3 py-1 rounded-md transition-colors"
                 >
                   Eliminar
                 </button>
               </td>
             </tr>
           ))}
+          {cursos.length === 0 && (
+            <tr>
+              <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                No hay cursos registrados
+              </td>
+            </tr>
+          )}
         </tbody>
       </table>
     </div>
