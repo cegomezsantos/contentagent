@@ -1,4 +1,50 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Gestión de Cursos
+
+Aplicación web para gestionar cursos y sus archivos asociados utilizando Next.js y Supabase.
+
+## Configuración
+
+1. Clona el repositorio:
+```bash
+git clone [URL_DEL_REPOSITORIO]
+cd [NOMBRE_DEL_PROYECTO]
+```
+
+2. Instala las dependencias:
+```bash
+npm install
+```
+
+3. Crea un archivo `.env.local` en la raíz del proyecto con las siguientes variables:
+```
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+4. Configura Supabase:
+   - Crea un bucket llamado `archivos` en Storage
+   - Ejecuta las migraciones SQL del archivo `supabase/migrations/20240531_init.sql`
+
+5. Inicia el servidor de desarrollo:
+```bash
+npm run dev
+```
+
+## Características
+
+- Subida de archivos con información del curso
+- Visualización de cursos en una tabla
+- Descarga de archivos
+- Eliminación de cursos y archivos
+
+## Tecnologías
+
+- Next.js
+- TypeScript
+- Tailwind CSS
+- Supabase
+- React Hot Toast
+- date-fns
 
 ## Getting Started
 
