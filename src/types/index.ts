@@ -1,11 +1,13 @@
 export interface Curso {
-  id: string;
+  id?: number;
   nombre_curso: string;
-  version: string;
+  version: number;
   fecha_entrega: string;
   archivo_url: string;
   archivo_nombre: string;
-  created_at: string;
+  cuenta: 'ejecutiva' | 'pregrado' | 'Harson' | 'escuela';
+  codigo: string;
+  created_at?: string;
 }
 
 export interface GoogleDriveFile {

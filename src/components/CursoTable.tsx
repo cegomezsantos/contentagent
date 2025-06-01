@@ -15,8 +15,8 @@ interface CursoTableProps {
 export default function CursoTable({ cursos, onUpdate }: CursoTableProps) {
   const [loading, setLoading] = useState(false);
 
-  const handleDelete = async (id: string, archivo_url: string) => {
-    if (!confirm('¿Estás seguro de que deseas eliminar este curso?')) return;
+  const handleDelete = async (id: number | undefined, archivo_url: string) => {
+    if (!id || !confirm('¿Estás seguro de que deseas eliminar este curso?')) return;
 
     setLoading(true);
     try {
@@ -76,6 +76,12 @@ export default function CursoTable({ cursos, onUpdate }: CursoTableProps) {
               Nombre del Curso
             </th>
             <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
+              Cuenta
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
+              Código
+            </th>
+            <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
               Versión
             </th>
             <th className="px-6 py-4 text-left text-sm font-semibold text-white uppercase tracking-wider">
@@ -94,6 +100,12 @@ export default function CursoTable({ cursos, onUpdate }: CursoTableProps) {
             <tr key={curso.id} className="hover:bg-gray-50">
               <td className="px-6 py-4 text-sm text-gray-900 font-medium">
                 {curso.nombre_curso}
+              </td>
+              <td className="px-6 py-4 text-sm text-gray-900">
+                {curso.cuenta}
+              </td>
+              <td className="px-6 py-4 text-sm text-gray-900">
+                {curso.codigo}
               </td>
               <td className="px-6 py-4 text-sm text-gray-900">
                 {curso.version}
@@ -126,7 +138,7 @@ export default function CursoTable({ cursos, onUpdate }: CursoTableProps) {
           ))}
           {cursos.length === 0 && (
             <tr>
-              <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+              <td colSpan={7} className="px-6 py-8 text-center text-gray-500">
                 No hay cursos registrados
               </td>
             </tr>
