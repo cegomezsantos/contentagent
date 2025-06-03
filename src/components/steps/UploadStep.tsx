@@ -221,6 +221,33 @@ export default function UploadStep({ onSuccess, onNext }: UploadStepProps) {
           />
         </div>
 
+        {/* Verificaciones antes de subir */}
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-lg font-medium text-yellow-800">VERIFICAR ANTES DE SUBIR EL SÍLABO</h3>
+            <button
+              type="button"
+              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors text-sm font-medium"
+            >
+              ✓ VERIFICAR ANTES DE SUBIR EL SÍLABO
+            </button>
+          </div>
+          <ul className="space-y-2 text-sm text-yellow-700">
+            <li className="flex items-start gap-2">
+              <span className="font-semibold text-yellow-800">1.</span>
+              <span>Los objetivos deben estar numerados</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-semibold text-yellow-800">2.</span>
+              <span>Verificar que las secciones estén correctamente tituladas</span>
+            </li>
+            <li className="flex items-start gap-2">
+              <span className="font-semibold text-yellow-800">3.</span>
+              <span>Verificar que la tabla esté correctamente estructurada</span>
+            </li>
+          </ul>
+        </div>
+
         <div>
           <button
             type="submit"

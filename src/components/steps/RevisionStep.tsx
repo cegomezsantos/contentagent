@@ -5,6 +5,8 @@ import { CursoConRevision, RevisionSilabo, AnalisisResultado, SesionTema } from 
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
+// @ts-ignore
+import mammoth from 'mammoth';
 
 interface RevisionStepProps {
   cursos: CursoConRevision[];
@@ -36,7 +38,7 @@ export default function RevisionStep({ cursos }: RevisionStepProps) {
 
       // Combinar cursos con sus revisiones
       const cursosConEstado = cursos.map(curso => {
-        const revision = revisiones?.find(r => r.curso_id === curso.id?.toString());
+        const revision = revisiones?.find(r => r.curso_id === curso.id);
         return {
           ...curso,
           revision: revision || undefined
@@ -56,103 +58,194 @@ export default function RevisionStep({ cursos }: RevisionStepProps) {
     setResultado(null);
     
     try {
-      // Obtener el contenido del documento desde Supabase
-      const response = await fetch(curso.archivo_url);
-      const documentoTexto = await response.text();
+      // Obtener el contenido del documento desde Supabase Storage
+      console.log('🔄 Obteniendo archivo desde Supabase Storage...');
+      console.log('📁 Path del archivo:', curso.archivo_url);
 
-      // Primer análisis: Revisión general del sílabo
+      const { data: fileData, error: downloadError } = await supabase.storage
+        .from('archivos')
+        .download(curso.archivo_url);
+
+      if (downloadError) {
+        console.error('❌ Error al descargar archivo:', downloadError);
+        throw new Error(`Error al obtener el documento: ${downloadError.message}`);
+      }
+
+      if (!fileData) {
+        throw new Error('No se pudo obtener el contenido del archivo');
+      }
+
+      let documentoTexto = '';
+
+      // Detectar el tipo de archivo y procesarlo apropiadamente
+      const fileName = curso.archivo_nombre.toLowerCase();
+      
+      if (fileName.endsWith('.docx')) {
+        console.log('📄 Procesando archivo .docx con mammoth...');
+        
+        // Convertir el blob a ArrayBuffer para mammoth
+        const arrayBuffer = await fileData.arrayBuffer();
+        
+        try {
+          const result = await mammoth.extractRawText({ arrayBuffer });
+          documentoTexto = result.value;
+          
+          if (result.messages && result.messages.length > 0) {
+            console.log('⚠️ Mensajes de mammoth:', result.messages);
+          }
+        } catch (mammothError) {
+          console.error('❌ Error con mammoth:', mammothError);
+          throw new Error('Error al procesar el archivo .docx');
+        }
+      } else {
+        // Para archivos de texto plano (.txt, .md, etc.)
+        console.log('📄 Procesando archivo de texto plano...');
+        documentoTexto = await fileData.text();
+      }
+
+      console.log('✅ Archivo procesado exitosamente');
+      console.log('📄 Contenido del documento (primeros 500 caracteres):', documentoTexto.substring(0, 500));
+      console.log('📏 Longitud total del documento:', documentoTexto.length);
+      
+      if (!documentoTexto || documentoTexto.trim().length === 0) {
+        throw new Error('El documento está vacío o no se pudo leer');
+      }
+
+      // Verificar si el documento parece ser un sílabo válido
+      const palabrasClave = ['objetivo', 'contenido', 'tema', 'sesion', 'competencia', 'curso', 'bibliografia'];
+      const tieneContenidoRelevante = palabrasClave.some(palabra => 
+        documentoTexto.toLowerCase().includes(palabra)
+      );
+
+      if (!tieneContenidoRelevante) {
+        console.warn('El documento no parece contener información típica de un sílabo');
+      }
+
+      // Primer análisis: Revisión general del sílabo (prompt optimizado del usuario)
       const promptRevision = `Rol
 Actúa como un experto en diseño curricular con amplia experiencia en la elaboración y evaluación de programas de nivel superior, especializado en la metodología «Aprende Haciendo» y en la ingeniería de prompts.
 
 Tarea
 Analiza el sílabo que proporcionará el usuario exclusivamente en las secciones:
-- Objetivo general
-- Objetivos específicos
-- Contenidos (incluye actividades, secuencia y carga)
-- "Software y recursos educativos utilizados"
-- Bibliografía
-
+Objetivo general
+Objetivos específicos
+Contenidos (incluye temas, actividades/evaluación, secuencia y carga)
+"Software y recursos educativos utilizados" (si existe en el sílabo)
+Bibliografía
 No analices Metodología ni Evaluación (ignóralas por completo).
 
-🛑 A diferencia de la versión original, no debes re-escribir el sílabo; solo emite observaciones y recomendaciones sobre los aspectos que requieran mejora.
+🛑 No debes re-escribir el sílabo; solo emite observaciones y recomendaciones sobre los aspectos que requieran mejora.
 
 FORMATO DEL INFORME – «Informe de Observaciones»
 Entrega las secciones en el orden que sigue.
 En cada una:
-- Si no hay problemas, escribe (Sin observaciones).
-- Si existen problemas, enumera observaciones concisas en viñetas (máx. 3 líneas por viñeta).
+
+Si no hay problemas, escribe (Sin observaciones).
+
+Si existen problemas, enumera observaciones concisas en viñetas (máx. 3 líneas por viñeta).
 
 Objetivo general
-- Conjugación y verbo (infinitivo / 2.ª persona)
-- Acción-conocimiento-contexto: precisión y pertinencia
-- Verbo adecuado según lista recomendada
+Conjugación y verbo (infinitivo / 2.ª persona).
+Acción-conocimiento-contexto: precisión y pertinencia.
+Verbo adecuado según taxonomías reconocidas (ej. Bloom, Marzano).
 
 Objetivos específicos
-- Producto observable / aprendizaje tangible
-- Verbos accionables («Aplicar», «Demostrar», etc.)
-- Orden lógico de progresión (simple → complejo)
+Producto observable / aprendizaje tangible.
+Verbos accionables («Aplicar», «Demostrar», «Evaluar», «Crear», etc.).
+Orden lógico de progresión (simple → complejo).
+Alineación directa con el Objetivo General.
 
 Contenidos
-- Correspondencia Objetivos ↔ Contenidos: escribe antes de cualquier tabla uno de los tres veredictos exactamente así: correcta / parcial / incorrecta.
-- Si el veredicto es parcial o incorrecta, añade solo las actividades mal vinculadas en la siguiente tabla:
-  [Objetivo(s) afectado(s)] | [Problema detectado]
-- División en sesiones, subtemas y actividades
-- Secuencia temática y carga horaria (densidad)
+Extracción de Temas y Actividades por Sesión:
+Antes de cualquier análisis de la sección "Contenidos", primero extrae y presenta la siguiente información para CADA sesión encontrada en la tabla 'CONTENIDOS' del sílabo, utilizando el siguiente formato exacto para cada una:
+
+**SESIÓN [Número de Sesión]**
+**TEMA:**
+[Contenido completo de la columna 'TEMA' para esta sesión, incluyendo subpuntos numerados si los hay]
+**ACTIVIDAD/EVALUACIÓN:**
+[Contenido completo de la columna 'ACTIVIDAD/EVALUACIÓN' para esta sesión, incluyendo 'Producto buscado' si lo hay]
+---
+(Repetir este bloque para cada sesión)
+
+Análisis de Contenidos:
+Correspondencia Objetivos Específicos ↔ Contenidos (Temas y Actividades/Evaluación extraídos): escribe antes de cualquier tabla uno de los tres veredictos exactamente así: correcta / parcial / incorrecta.
+Si el veredicto es parcial o incorrecta, añade solo las actividades/temas mal vinculados o ausentes, o los objetivos no cubiertos, en la siguiente tabla:
+[Objetivo(s) Específico(s) afectado(s)] | [Problema detectado en Tema o Actividad/Evaluación (o ausencia de cobertura)]
+Adecuación de la división en sesiones y la distribución de subtemas para cubrir los objetivos.
+Secuencia temática y carga horaria (densidad aparente de contenidos por sesión en relación con las horas cronológicas del curso).
+Pertinencia y claridad de las "Actividades/Evaluación" y "Productos buscados" para cada sesión, y su contribución al logro de los objetivos específicos.
 
 Software y recursos educativos utilizados
-- Presencia y formato de dos columnas
-- Cobertura de herramientas críticas y versiones
+Presencia y formato (si la sección existe en el sílabo; si no, indicar "Sección no encontrada en el sílabo").
+Cobertura de herramientas críticas para los contenidos y actividades, y si se especifican versiones o alternativas.
 
 Bibliografía
-- Formato (APA 7)
-- Actualización (preferir ediciones ≥ 2023)
-- Cobertura temática suficiente
+Formato (verificar si se aproxima a APA 7 u otro estándar consistente).
+Actualización (presencia de fuentes recientes, idealmente de los últimos 5-7 años, aunque se valora la relevancia de clásicos si aplica).
+Cobertura temática suficiente y pertinente en relación con los contenidos del curso.
 
 Reglas de estilo
-- Sé directo, profesional y específico.
-- No incluyas frases elogiosas ni textos superfluos.
-- Evita escribir «Está correcto»; si algo no requiere mejora, usa la etiqueta (Sin observaciones).
-- Mantén viñetas claras y tablas donde se indiquen.
-- Usa fechas absolutas ("26 de mayo de 2025") para evitar ambigüedad.
-- Todas las sugerencias deben ser concretas y accionables.
+Sé directo, profesional y específico.
+No incluyas frases elogiosas ni textos superfluos.
+Evita escribir «Está correcto»; si algo no requiere mejora, usa la etiqueta (Sin observaciones).
+Mantén viñetas claras y tablas donde se indiquen.
+Usa fechas absolutas (ej. "26 de mayo de 2025") solo si es estrictamente necesario para la claridad de una recomendación.
+Todas las sugerencias deben ser concretas y accionables.
 
-Aquí está el sílabo a analizar:
+DOCUMENTO A ANALIZAR:
 ${documentoTexto}`;
 
-      // Segundo análisis: Extracción de temas por sesión
-      const promptSesiones = `Analiza el siguiente sílabo y extrae los temas específicos de cada sesión. 
-      
-Para cada sesión que encuentres, devuelve la información en este formato JSON:
-{
-  "sesiones": [
-    {
-      "sesion": "Sesión 1",
-      "temas": ["tema1", "tema2", "tema3"]
-    },
-    {
-      "sesion": "Sesión 2", 
-      "temas": ["tema1", "tema2"]
-    }
-  ]
-}
+      // Segundo análisis: Extracción simple de sesiones (sin JSON para evitar errores)
+      const promptSesiones = `Extrae únicamente los temas/contenidos principales del siguiente documento de sílabo.
 
-Sílabo:
+Lista cada sesión que encuentres con el formato:
+SESIÓN 1: [tema principal]
+SESIÓN 2: [tema principal]
+etc.
+
+Si no encuentras sesiones numeradas, lista los temas principales que identifiques.
+
+DOCUMENTO:
 ${documentoTexto}`;
 
       // Hacer las llamadas a DeepSeek API
+      console.log('🔄 Iniciando análisis con DeepSeek API...');
+      
       const [analisisGeneral, analisisSesiones] = await Promise.all([
         realizarAnalisis(promptRevision),
         realizarAnalisis(promptSesiones)
       ]);
 
+      console.log('✅ Análisis completados exitosamente');
+
       // Procesar respuesta de sesiones
       let sesionesData: SesionTema[] = [];
       try {
-        const sesionesJson = JSON.parse(analisisSesiones);
-        sesionesData = sesionesJson.sesiones || [];
+        // Intentar procesar como texto simple (formato: SESIÓN X: tema)
+        const lineasSesiones = analisisSesiones.split('\n').filter(linea => linea.trim());
+        
+        lineasSesiones.forEach((linea, index) => {
+          const match = linea.match(/SESIÓN\s*(\d+):\s*(.+)/i);
+          if (match) {
+            sesionesData.push({
+              sesion: `Sesión ${match[1]}`,
+              temas: [match[2].trim()]
+            });
+          } else if (linea.trim() && !linea.includes(':')) {
+            // Si es solo un tema sin formato de sesión
+            sesionesData.push({
+              sesion: `Tema ${index + 1}`,
+              temas: [linea.trim()]
+            });
+          }
+        });
+        
+        console.log('📚 Sesiones procesadas:', sesionesData.length);
       } catch (error) {
-        console.error('Error parsing sesiones:', error);
-        toast.error('Error al procesar los temas por sesión');
+        console.error('❌ Error procesando sesiones:', error);
+        console.log('📄 Respuesta de sesiones original:', analisisSesiones);
+        // Si hay error, mantener un array vacío
+        sesionesData = [];
       }
 
       // Dividir el análisis general en secciones
@@ -171,7 +264,15 @@ ${documentoTexto}`;
 
     } catch (error) {
       console.error('Error en análisis:', error);
-      toast.error('Error al analizar el sílabo. Verifica la configuración de la API.');
+      
+      // Verificar si es un error de API Key
+      if (error instanceof Error && error.message.includes('500')) {
+        toast.error('❌ API Key de DeepSeek no configurada.\n\n1. Crea un archivo .env.local\n2. Agrega: DEEPSEEK_API_KEY=tu_api_key\n3. Reinicia el servidor\n\nRevisa CONFIGURACION.md para más detalles');
+      } else if (error instanceof Error && error.message.includes('401')) {
+        toast.error('❌ API Key de DeepSeek inválida.\nVerifica tu clave en https://platform.deepseek.com/api_keys');
+      } else {
+        toast.error(`Error al analizar el sílabo: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+      }
     } finally {
       setAnalizando(false);
     }
@@ -187,7 +288,13 @@ ${documentoTexto}`;
     });
 
     if (!response.ok) {
-      throw new Error('Error en la API de DeepSeek');
+      const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+      console.error('❌ Error en API response:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData
+      });
+      throw new Error(`Error ${response.status}: ${errorData.error || 'Error desconocido'}`);
     }
 
     const data = await response.json();
@@ -245,7 +352,7 @@ ${sesion.temas.map(tema => `- ${tema}`).join('\n')}
       const { error } = await supabase
         .from('revision_silabus')
         .upsert({
-          curso_id: cursoSeleccionado.id?.toString(),
+          curso_id: cursoSeleccionado.id,
           estado: aprobado ? 'aprobado' : 'desaprobado',
           informe_revision: informeCompleto,
           revisor: 'Sistema IA', // Puedes cambiar esto por el usuario actual

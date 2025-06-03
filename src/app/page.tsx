@@ -17,15 +17,15 @@ import RevisoresStep from '@/components/steps/RevisoresStep';
 import GraficaStep from '@/components/steps/GraficaStep';
 
 const TABS = [
-  { id: 'upload', label: 'Subir Curso' },
-  { id: 'view', label: 'Ver Cursos' },
-  { id: 'revision', label: 'Revisión Sílabos' },
-  { id: 'investigacion', label: 'Investigación' },
-  { id: 'comparacion', label: 'Comparación' },
-  { id: 'actividades', label: 'Actividades' },
-  { id: 'ppt', label: 'PPT' },
-  { id: 'revisores', label: 'Revisores' },
-  { id: 'grafica', label: 'Gráfica' },
+  { id: 'upload', label: 'Subir Curso', step: 1 },
+  { id: 'view', label: 'Ver Cursos', step: 2 },
+  { id: 'revision', label: 'Revisión Sílabos', step: 3 },
+  { id: 'investigacion', label: 'Investigación', step: 4 },
+  { id: 'comparacion', label: 'Comparación', step: 5 },
+  { id: 'actividades', label: 'Actividades', step: 6 },
+  { id: 'ppt', label: 'PPT', step: 7 },
+  { id: 'revisores', label: 'Revisores', step: 8 },
+  { id: 'grafica', label: 'Gráfica', step: 9 },
 ];
 
 export default function Home() {
@@ -83,7 +83,7 @@ export default function Home() {
   return (
     <ProtectedRoute>
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Gestión de Cursos</h1>
+        <h1 className="text-3xl font-bold mb-8">Agente contenidos</h1>
         <div className="bg-white rounded-lg shadow">
           <div className="overflow-x-auto">
             <TabNavigation
