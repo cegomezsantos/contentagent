@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { supabase } from '@/lib/supabase';
-import { Curso } from '@/types';
+import { CursoConRevision } from '@/types';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import TabNavigation from '@/components/TabNavigation';
 import UploadStep from '@/components/steps/UploadStep';
@@ -30,7 +30,7 @@ const TABS = [
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState('upload');
-  const [cursos, setCursos] = useState<Curso[]>([]);
+  const [cursos, setCursos] = useState<CursoConRevision[]>([]);
 
   useEffect(() => {
     fetchCursos();

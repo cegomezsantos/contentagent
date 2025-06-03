@@ -3,12 +3,21 @@ import OpenAI from 'openai';
 
 export async function POST(request: NextRequest) {
   try {
-    const { prompt, apiKey } = await request.json();
+    const { prompt } = await request.json();
 
-    if (!prompt || !apiKey) {
+    if (!prompt) {
       return NextResponse.json(
-        { error: 'Prompt y API Key son requeridos' },
+        { error: 'Prompt es requerido' },
         { status: 400 }
+      );
+    }
+
+    // Obtener API Key desde variables de entorno
+    const apiKey = process.env.DEEPSEEK_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'API Key de DeepSeek no configurada en el servidor' },
+        { status: 500 }
       );
     }
 
@@ -40,7 +49,7 @@ export async function POST(request: NextRequest) {
     // Manejar errores específicos de la API
     if (error.status === 401) {
       return NextResponse.json(
-        { error: 'API Key inválida. Verifica tu clave de DeepSeek.' },
+        { error: 'API Key inválida. Verifica la configuración de DeepSeek.' },
         { status: 401 }
       );
     }
