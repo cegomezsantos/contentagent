@@ -1,0 +1,11 @@
+{
+  "functions": {
+    "*": {
+      "external_node_modules": ["openai"],
+      "included_files": ["**/*.js", "**/*.ts"]
+    }
+  },
+  "build": {
+    "functions": "netlify/functions"
+  }
+} 

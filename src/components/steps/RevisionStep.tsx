@@ -360,26 +360,57 @@ ${documentoTexto}`;
   };
 
   const realizarAnalisis = async (prompt: string): Promise<string> => {
-    const response = await fetch('/api/deepseek-analysis', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ prompt }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos timeout
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
-      console.error('❌ Error en API response:', {
-        status: response.status,
-        statusText: response.statusText,
-        errorData
+    try {
+      const response = await fetch('/api/deepseek-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ prompt }),
+        signal: controller.signal,
       });
-      throw new Error(`Error ${response.status}: ${errorData.error || 'Error desconocido'}`);
-    }
 
-    const data = await response.json();
-    return data.result;
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Error desconocido' }));
+        console.error('❌ Error en API response:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
+
+        // Manejo específico de errores comunes
+        if (response.status === 504) {
+          throw new Error('El análisis está tardando mucho. Por favor intenta con un sílabo más corto o vuelve a intentar.');
+        }
+        
+        if (response.status === 401) {
+          throw new Error('Error de autenticación con la API de IA. Contacta al administrador.');
+        }
+        
+        if (response.status === 429) {
+          throw new Error('Límite de peticiones excedido. Espera unos minutos antes de intentar nuevamente.');
+        }
+
+        throw new Error(`Error ${response.status}: ${errorData.error || 'Error desconocido'}`);
+      }
+
+      const data = await response.json();
+      return data.result;
+    } catch (error: unknown) {
+      clearTimeout(timeoutId);
+      
+      const apiError = error as { name?: string; message?: string };
+      if (apiError.name === 'AbortError') {
+        throw new Error('El análisis se canceló por timeout. Por favor intenta con un documento más corto.');
+      }
+      
+      throw error;
+    }
   };
 
 

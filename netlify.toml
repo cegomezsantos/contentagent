@@ -9,6 +9,11 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
+[functions]
+  # Configuración para funciones de Next.js
+  external_node_modules = ["openai"]
+  node_bundler = "esbuild"
+
 # Redirecciones para SPA
 [[redirects]]
   from = "/*"
