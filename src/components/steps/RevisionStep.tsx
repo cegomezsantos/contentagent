@@ -138,151 +138,63 @@ export default function RevisionStep({ cursos }: RevisionStepProps) {
       }
 
       // Primer análisis: Informe completo del contenido del sílabo
-      const promptInforme = `Eres un experto evaluador de sílabos universitarios con amplia experiencia en diseño curricular y metodología "Aprende Haciendo".
-
-**INSTRUCCIÓN PRINCIPAL:**
-Analiza exhaustivamente el sílabo proporcionado y genera un informe completo y estructurado del contenido. Este informe debe ser profesional, detallado y útil para la toma de decisiones académicas.
-
-**ESTRUCTURA OBLIGATORIA DEL INFORME:**
+      const promptInforme = `Analiza el sílabo y genera un informe estructurado con:
 
 # INFORME DE ANÁLISIS DE SÍLABO
 
-## 1. INFORMACIÓN GENERAL
-- Nombre del curso: [extraer del documento]
-- Código del curso: [extraer del documento]
-- Duración/créditos: [extraer del documento]
-- Modalidad: [extraer del documento]
+## INFORMACIÓN GENERAL
+Extrae: nombre del curso, código, créditos, modalidad
 
-## 2. ANÁLISIS DE OBJETIVOS
+## OBJETIVOS
+Evalúa objetivo general y específicos: formulación, alineación, medibilidad
 
-### Objetivo General
-- **Contenido:** [transcribir objetivo general]
-- **Evaluación:** [analizar si está bien formulado, usa verbos apropiados, es medible y alcanzable]
-- **Observaciones:** [sugerencias de mejora si las hay]
+## CONTENIDOS
+Analiza: número de sesiones, secuencia lógica, cobertura de objetivos
 
-### Objetivos Específicos
-- **Cantidad:** [número de objetivos específicos]
-- **Contenido:** [listar cada objetivo específico]
-- **Evaluación:** [analizar alineación con objetivo general, progresión lógica, verbos de acción]
-- **Observaciones:** [sugerencias de mejora si las hay]
+## RECURSOS Y METODOLOGÍA
+Lista: herramientas, recursos didácticos, pertinencia
 
-## 3. ANÁLISIS DE CONTENIDOS
+## BIBLIOGRAFÍA
+Evalúa: cantidad, actualización, relevancia
 
-### Estructura Temática
-- **Número total de sesiones/temas:** [cantidad]
-- **Distribución temporal:** [análisis de la carga horaria]
-- **Secuencia lógica:** [evaluación del orden de los temas]
-
-### Cobertura de Objetivos
-- **Alineación:** [análisis de cómo los contenidos cubren los objetivos]
-- **Gaps identificados:** [temas faltantes o desalineados]
-- **Redundancias:** [contenidos repetitivos si existen]
-
-## 4. METODOLOGÍA Y RECURSOS
-
-### Software y Herramientas
-- **Herramientas mencionadas:** [listar software/herramientas]
-- **Adecuación:** [análisis de pertinencia para los objetivos]
-- **Observaciones:** [sugerencias adicionales]
-
-### Recursos Educativos
-- **Materiales didácticos:** [análisis de recursos mencionados]
-- **Diversidad de recursos:** [evaluación de variedad]
-- **Actualización:** [comentarios sobre vigencia]
-
-## 5. BIBLIOGRAFÍA
-
-### Análisis Cuantitativo
-- **Número de referencias:** [cantidad total]
-- **Tipos de fuentes:** [libros, artículos, web, etc.]
-- **Idiomas:** [distribución por idioma]
-
-### Análisis Cualitativo
-- **Actualización:** [años de las fuentes más recientes y antiguas]
-- **Relevancia:** [pertinencia temática]
-- **Formato:** [adherencia a normas de citación]
-- **Observaciones:** [sugerencias de mejora]
-
-## 6. EVALUACIÓN GENERAL
-
-### Fortalezas Identificadas
-- [Listar aspectos positivos del sílabo]
-
-### Áreas de Mejora
-- [Listar aspectos que requieren mejora]
-
-### Recomendaciones Prioritarias
-1. [Recomendación más importante]
-2. [Segunda recomendación]
-3. [Tercera recomendación]
-
-## 7. CONCLUSIÓN
-[Evaluación general del sílabo y recomendación final]
+## EVALUACIÓN GENERAL
+- Fortalezas principales
+- Áreas de mejora críticas  
+- 3 recomendaciones prioritarias
+- Conclusión final
 
 ---
-
-**DOCUMENTO A ANALIZAR:**
+DOCUMENTO:
 ${documentoTexto}`;
 
       // Segundo análisis: Extracción de JSON estructurado de sesiones
-      const promptJSON = `Eres un experto en extracción y estructuración de información académica. Tu única tarea es extraer los temas y actividades de cada sesión del sílabo y convertirlos a formato JSON estructurado.
+      const promptJSON = `Extrae las sesiones del sílabo en formato JSON:
 
-**INSTRUCCIONES ESPECÍFICAS:**
-
-1. Busca en el documento la sección de CONTENIDOS, tabla de sesiones, o cualquier estructura que liste las sesiones del curso
-2. Para cada sesión identificada, extrae EXACTAMENTE como aparece en el documento:
-   - Número de sesión
-   - Tema(s) principal(es) 
-   - Subtemas (si existen)
-   - **ACTIVIDAD COMPLETA**: Todo el contenido de la celda/sección de actividades tal como aparece
-   - Recursos utilizados
-   - Evaluaciones mencionadas
-
-3. **FORMATO JSON OBLIGATORIO:**
-\`\`\`json
 {
   "metadatos": {
-    "total_sesiones": [número total de sesiones],
+    "total_sesiones": [número],
     "fecha_extraccion": "${new Date().toISOString()}",
-    "curso": "[nombre del curso extraído]"
+    "curso": "[nombre del curso]"
   },
   "sesiones": [
     {
       "numero_sesion": 1,
-      "tema_principal": "[tema principal de la sesión]",
-      "subtemas": [
-        "[subtema 1]",
-        "[subtema 2]"
-      ],
-      "actividad": "[CONTENIDO COMPLETO de la celda/sección de actividades tal como aparece en el documento, incluyendo descripciones, foros, productos esperados, etc.]",
-      "recursos": [
-        "[recurso 1]",
-        "[recurso 2]"
-      ],
-      "evaluacion": "[información de evaluación si está especificada]",
-      "duracion_horas": "[horas si está especificado]"
+      "tema_principal": "[tema]",
+      "subtemas": ["[subtema1]", "[subtema2]"],
+      "actividad": "[actividad completa tal como aparece]",
+      "recursos": ["[recurso1]"],
+      "evaluacion": "[evaluación]",
+      "duracion_horas": "[horas]"
     }
   ]
 }
-\`\`\`
 
-4. **REGLAS CRÍTICAS PARA ACTIVIDADES:**
-   - En el campo "actividad", copia TODA la información de la celda de actividades
-   - Si hay información como "Actividad 1 (Individual)", "Foro:", "Descripción:", etc., inclúyelo COMPLETO
-   - Si menciona "Producto buscado:", inclúyelo textualmente
-   - NO fragmentes ni separes la información de actividades
-   - Si una actividad tiene múltiples párrafos, inclúyelos todos en un solo string
+Reglas:
+- Incluye actividad COMPLETA (foros, productos, etc.)
+- Campos vacíos: "" o []
+- JSON válido únicamente
 
-5. **REGLAS GENERALES:**
-   - Si no encuentras información específica para algún campo, úsalo como string vacío "" o array vacío []
-   - Mantén el texto original sin modificar
-   - No inventes información que no esté en el documento
-   - Asegúrate de que el JSON sea válido
-   - Si no hay sesiones claras, extrae temas generales como sesiones numeradas
-
-**RESPONDE ÚNICAMENTE CON EL JSON, SIN TEXTO ADICIONAL**
-
-**DOCUMENTO A ANALIZAR:**
+DOCUMENTO:
 ${documentoTexto}`;
 
       // Hacer las llamadas a DeepSeek API
