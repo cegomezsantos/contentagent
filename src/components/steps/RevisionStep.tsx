@@ -7,7 +7,7 @@ interface SesionJSON {
   numero_sesion: number;
   tema_principal: string;
   subtemas?: string[];
-  actividad?: string;
+  actividades_aprendizaje?: string;
   recursos?: string[];
   evaluacion?: string;
   duracion_horas?: string;
@@ -181,7 +181,7 @@ ${documentoTexto}`;
       "numero_sesion": 1,
       "tema_principal": "[tema]",
       "subtemas": ["[subtema1]", "[subtema2]"],
-      "actividad": "[actividad completa tal como aparece]",
+      "actividades_aprendizaje": "[actividad completa tal como aparece]",
       "recursos": ["[recurso1]"],
       "evaluacion": "[evaluación]",
       "duracion_horas": "[horas]"
@@ -190,7 +190,7 @@ ${documentoTexto}`;
 }
 
 Reglas:
-- Incluye actividad COMPLETA (foros, productos, etc.)
+- En "actividades_aprendizaje" incluye TODO el contenido (foros, productos, etc.)
 - Campos vacíos: "" o []
 - JSON válido únicamente
 
@@ -223,7 +223,7 @@ ${documentoTexto}`;
             temas: [
               sesion.tema_principal,
               ...(sesion.subtemas || []),
-              ...(sesion.actividad ? [sesion.actividad] : []),
+              ...(sesion.actividades_aprendizaje ? [sesion.actividades_aprendizaje] : []),
               ...(sesion.evaluacion ? [sesion.evaluacion] : [])
             ].filter(Boolean)
           }));
