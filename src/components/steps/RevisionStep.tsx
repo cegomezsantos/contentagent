@@ -24,7 +24,8 @@ interface RevisionStepProps {
 export default function RevisionStep({ cursos }: RevisionStepProps) {
   const [cursosConRevision, setCursosConRevision] = useState<CursoConRevision[]>([]);
   const [cursoSeleccionado, setCursoSeleccionado] = useState<CursoConRevision | null>(null);
-  const [analizando, setAnalizando] = useState(false);
+  const [analizandoInforme, setAnalizandoInforme] = useState(false);
+  const [analizandoJSON, setAnalizandoJSON] = useState(false);
   const [resultado, setResultado] = useState<AnalisisResultado | null>(null);
   const [procesandoDecision, setProcesandoDecision] = useState(false);
   const [informeMostrado, setInformeMostrado] = useState<string | null>(null);
@@ -68,76 +69,84 @@ export default function RevisionStep({ cursos }: RevisionStepProps) {
     }
   };
 
-  const analizarSilabo = async (curso: CursoConRevision) => {
+  // Estado compartido para almacenar el contenido del documento
+  const [documentoTexto, setDocumentoTexto] = useState<string>('');
+
+  // Función para obtener y procesar el documento
+  const obtenerDocumento = async (curso: CursoConRevision): Promise<string> => {
+    if (documentoTexto && cursoSeleccionado?.id === curso.id) {
+      return documentoTexto;
+    }
+
+    console.log('🔄 Obteniendo archivo desde Supabase Storage...');
+    console.log('📁 Path del archivo:', curso.archivo_url);
+
+    const { data: fileData, error: downloadError } = await supabase.storage
+      .from('archivos')
+      .download(curso.archivo_url);
+
+    if (downloadError) {
+      console.error('❌ Error al descargar archivo:', downloadError);
+      throw new Error(`Error al obtener el documento: ${downloadError.message}`);
+    }
+
+    if (!fileData) {
+      throw new Error('No se pudo obtener el contenido del archivo');
+    }
+
+    let contenido = '';
+    const fileName = curso.archivo_nombre.toLowerCase();
+    
+    if (fileName.endsWith('.docx')) {
+      console.log('📄 Procesando archivo .docx con mammoth...');
+      
+      const arrayBuffer = await fileData.arrayBuffer();
+      
+      try {
+        const result = await mammoth.extractRawText({ arrayBuffer });
+        contenido = result.value;
+        
+        if (result.messages && result.messages.length > 0) {
+          console.log('⚠️ Mensajes de mammoth:', result.messages);
+        }
+      } catch (mammothError) {
+        console.error('❌ Error con mammoth:', mammothError);
+        throw new Error('Error al procesar el archivo .docx');
+      }
+    } else {
+      console.log('📄 Procesando archivo de texto plano...');
+      contenido = await fileData.text();
+    }
+
+    console.log('✅ Archivo procesado exitosamente');
+    console.log('📏 Longitud total del documento:', contenido.length);
+    
+    if (!contenido || contenido.trim().length === 0) {
+      throw new Error('El documento está vacío o no se pudo leer');
+    }
+
+    // Verificar si el documento parece ser un sílabo válido
+    const palabrasClave = ['objetivo', 'contenido', 'tema', 'sesion', 'competencia', 'curso', 'bibliografia'];
+    const tieneContenidoRelevante = palabrasClave.some(palabra => 
+      contenido.toLowerCase().includes(palabra)
+    );
+
+    if (!tieneContenidoRelevante) {
+      console.warn('El documento no parece contener información típica de un sílabo');
+    }
+
+    setDocumentoTexto(contenido);
     setCursoSeleccionado(curso);
-    setAnalizando(true);
-    setResultado(null);
+    return contenido;
+  };
+
+  // Función para generar solo el informe
+  const analizarInforme = async (curso: CursoConRevision) => {
+    setAnalizandoInforme(true);
     
     try {
-      // Obtener el contenido del documento desde Supabase Storage
-      console.log('🔄 Obteniendo archivo desde Supabase Storage...');
-      console.log('📁 Path del archivo:', curso.archivo_url);
+      const contenido = await obtenerDocumento(curso);
 
-      const { data: fileData, error: downloadError } = await supabase.storage
-        .from('archivos')
-        .download(curso.archivo_url);
-
-      if (downloadError) {
-        console.error('❌ Error al descargar archivo:', downloadError);
-        throw new Error(`Error al obtener el documento: ${downloadError.message}`);
-      }
-
-      if (!fileData) {
-        throw new Error('No se pudo obtener el contenido del archivo');
-      }
-
-      let documentoTexto = '';
-
-      // Detectar el tipo de archivo y procesarlo apropiadamente
-      const fileName = curso.archivo_nombre.toLowerCase();
-      
-      if (fileName.endsWith('.docx')) {
-        console.log('📄 Procesando archivo .docx con mammoth...');
-        
-        // Convertir el blob a ArrayBuffer para mammoth
-        const arrayBuffer = await fileData.arrayBuffer();
-        
-        try {
-          const result = await mammoth.extractRawText({ arrayBuffer });
-          documentoTexto = result.value;
-          
-          if (result.messages && result.messages.length > 0) {
-            console.log('⚠️ Mensajes de mammoth:', result.messages);
-          }
-        } catch (mammothError) {
-          console.error('❌ Error con mammoth:', mammothError);
-          throw new Error('Error al procesar el archivo .docx');
-        }
-      } else {
-        // Para archivos de texto plano (.txt, .md, etc.)
-        console.log('📄 Procesando archivo de texto plano...');
-        documentoTexto = await fileData.text();
-      }
-
-      console.log('✅ Archivo procesado exitosamente');
-      console.log('📄 Contenido del documento (primeros 500 caracteres):', documentoTexto.substring(0, 500));
-      console.log('📏 Longitud total del documento:', documentoTexto.length);
-      
-      if (!documentoTexto || documentoTexto.trim().length === 0) {
-        throw new Error('El documento está vacío o no se pudo leer');
-      }
-
-      // Verificar si el documento parece ser un sílabo válido
-      const palabrasClave = ['objetivo', 'contenido', 'tema', 'sesion', 'competencia', 'curso', 'bibliografia'];
-      const tieneContenidoRelevante = palabrasClave.some(palabra => 
-        documentoTexto.toLowerCase().includes(palabra)
-      );
-
-      if (!tieneContenidoRelevante) {
-        console.warn('El documento no parece contener información típica de un sílabo');
-      }
-
-      // Primer análisis: Informe completo del contenido del sílabo
       const promptInforme = `Analiza el sílabo y genera un informe estructurado con:
 
 # INFORME DE ANÁLISIS DE SÍLABO
@@ -165,9 +174,41 @@ Evalúa: cantidad, actualización, relevancia
 
 ---
 DOCUMENTO:
-${documentoTexto}`;
+${contenido}`;
 
-      // Segundo análisis: Extracción de JSON estructurado de sesiones
+      console.log('🔄 Generando informe con DeepSeek API...');
+      const informeCompleto = await realizarAnalisis(promptInforme);
+
+      // Actualizar resultado manteniendo el JSON si ya existe
+      const nuevoResultado: AnalisisResultado = {
+        objetivoGeneral: informeCompleto.substring(0, informeCompleto.length / 5),
+        objetivosEspecificos: informeCompleto.substring(informeCompleto.length / 5, informeCompleto.length * 2 / 5),
+        contenidos: informeCompleto.substring(informeCompleto.length * 2 / 5, informeCompleto.length * 3 / 5),  
+        softwareRecursos: informeCompleto.substring(informeCompleto.length * 3 / 5, informeCompleto.length * 4 / 5),
+        bibliografia: informeCompleto.substring(informeCompleto.length * 4 / 5),
+        sesiones: resultado?.sesiones || [],
+        informeCompleto: informeCompleto,
+        jsonSesiones: resultado?.jsonSesiones || undefined
+      };
+
+      setResultado(nuevoResultado);
+      toast.success('📄 Informe generado exitosamente');
+
+    } catch (error) {
+      console.error('Error en análisis de informe:', error);
+      toast.error(`Error al generar el informe: ${error instanceof Error ? error.message : 'Error desconocido'}`);
+    } finally {
+      setAnalizandoInforme(false);
+    }
+  };
+
+  // Función para generar solo el JSON
+  const analizarJSON = async (curso: CursoConRevision) => {
+    setAnalizandoJSON(true);
+    
+    try {
+      const contenido = await obtenerDocumento(curso);
+
       const promptJSON = `Extrae las sesiones del sílabo en formato JSON:
 
 {
@@ -195,28 +236,19 @@ Reglas:
 - JSON válido únicamente
 
 DOCUMENTO:
-${documentoTexto}`;
+${contenido}`;
 
-      // Hacer las llamadas a DeepSeek API
-      console.log('🔄 Iniciando análisis con DeepSeek API...');
-      
-      const [informeCompleto, sesionesJSON] = await Promise.all([
-        realizarAnalisis(promptInforme),
-        realizarAnalisis(promptJSON)
-      ]);
-
-      console.log('✅ Análisis completados exitosamente');
+      console.log('🔄 Generando JSON con DeepSeek API...');
+      const sesionesJSON = await realizarAnalisis(promptJSON);
 
       // Procesar respuesta de sesiones JSON
       let sesionesData: SesionTema[] = [];
       let jsonEstructurado = null;
       
       try {
-        // Intentar parsear como JSON
         const jsonLimpio = sesionesJSON.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
         jsonEstructurado = JSON.parse(jsonLimpio);
         
-        // Convertir a formato interno si es necesario
         if (jsonEstructurado.sesiones && Array.isArray(jsonEstructurado.sesiones)) {
           sesionesData = jsonEstructurado.sesiones.map((sesion: SesionJSON) => ({
             sesion: `Sesión ${sesion.numero_sesion}`,
@@ -233,41 +265,30 @@ ${documentoTexto}`;
       } catch (error) {
         console.error('❌ Error procesando JSON:', error);
         console.log('📄 Respuesta JSON original:', sesionesJSON);
-        // Si hay error, mantener un array vacío
         sesionesData = [];
         jsonEstructurado = { error: "Error al procesar JSON", raw: sesionesJSON };
       }
 
-      // El resultado ahora incluye tanto el informe como el JSON
-      const resultadoFinal: AnalisisResultado = {
-        // Para mantener compatibilidad, dividimos el informe
-        objetivoGeneral: informeCompleto.substring(0, informeCompleto.length / 5),
-        objetivosEspecificos: informeCompleto.substring(informeCompleto.length / 5, informeCompleto.length * 2 / 5),
-        contenidos: informeCompleto.substring(informeCompleto.length * 2 / 5, informeCompleto.length * 3 / 5),  
-        softwareRecursos: informeCompleto.substring(informeCompleto.length * 3 / 5, informeCompleto.length * 4 / 5),
-        bibliografia: informeCompleto.substring(informeCompleto.length * 4 / 5),
+      // Actualizar resultado manteniendo el informe si ya existe
+      const nuevoResultado: AnalisisResultado = {
+        objetivoGeneral: resultado?.objetivoGeneral || '',
+        objetivosEspecificos: resultado?.objetivosEspecificos || '',
+        contenidos: resultado?.contenidos || '',
+        softwareRecursos: resultado?.softwareRecursos || '',
+        bibliografia: resultado?.bibliografia || '',
         sesiones: sesionesData,
-        // Nuevos campos para los productos solicitados
-        informeCompleto: informeCompleto,
+        informeCompleto: resultado?.informeCompleto || '',
         jsonSesiones: jsonEstructurado
       };
 
-      setResultado(resultadoFinal);
-      toast.success('Análisis completado exitosamente');
+      setResultado(nuevoResultado);
+      toast.success('📊 JSON generado exitosamente');
 
     } catch (error) {
-      console.error('Error en análisis:', error);
-      
-      // Verificar si es un error de API Key
-      if (error instanceof Error && error.message.includes('500')) {
-        toast.error('❌ API Key de DeepSeek no configurada.\n\n1. Crea un archivo .env.local\n2. Agrega: DEEPSEEK_API_KEY=tu_api_key\n3. Reinicia el servidor\n\nRevisa CONFIGURACION.md para más detalles');
-      } else if (error instanceof Error && error.message.includes('401')) {
-        toast.error('❌ API Key de DeepSeek inválida.\nVerifica tu clave en https://platform.deepseek.com/api_keys');
-      } else {
-        toast.error(`Error al analizar el sílabo: ${error instanceof Error ? error.message : 'Error desconocido'}`);
-      }
+      console.error('Error en análisis JSON:', error);
+      toast.error(`Error al generar el JSON: ${error instanceof Error ? error.message : 'Error desconocido'}`);
     } finally {
-      setAnalizando(false);
+      setAnalizandoJSON(false);
     }
   };
 
@@ -626,13 +647,22 @@ ${sesion.temas.map(tema => `- ${tema}`).join('\n')}
                     </button>
                   </>
                 )}
-                <button
-                  onClick={() => analizarSilabo(curso)}
-                  disabled={analizando}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {analizando && cursoSeleccionado?.id === curso.id ? 'Analizando...' : 'Revisar'}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => analizarInforme(curso)}
+                    disabled={analizandoInforme}
+                    className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {analizandoInforme && cursoSeleccionado?.id === curso.id ? '🔄' : '📄'} Informe
+                  </button>
+                  <button
+                    onClick={() => analizarJSON(curso)}
+                    disabled={analizandoJSON}
+                    className="px-3 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    {analizandoJSON && cursoSeleccionado?.id === curso.id ? '🔄' : '📊'} JSON
+                  </button>
+                </div>
               </div>
             </div>
           ))}
