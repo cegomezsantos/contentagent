@@ -26,8 +26,12 @@ yarn-debug.log*
 yarn-error.log*
 
 # local env files
+.env
 .env*.local
 .env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
@@ -38,3 +42,35 @@ next-env.d.ts
 
 # user configuration
 src/config/users.ts
+
+# Local Netlify folder
+.netlify
+
+# Archivos SQL de configuración (contienen scripts, no datos sensibles)
+# Estos SÍ se incluyen en el repo para que otros puedan configurar su BD
+# *.sql
+
+# Archivos temporales y de desarrollo
+*.log
+*.tmp
+*.temp
+.cache/
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Archivos de sistema
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Documentos de desarrollo personal (opcional)
+NOTAS_PERSONALES.md
+TODO_PRIVADO.md
+
+# Backups
+*.backup
+*.bak

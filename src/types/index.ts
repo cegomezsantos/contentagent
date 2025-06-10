@@ -40,6 +40,49 @@ export interface AnalisisResultado {
   softwareRecursos: string;
   bibliografia: string;
   sesiones: SesionTema[];
+  // Nuevos campos para los productos solicitados
+  informeCompleto?: string;
+  jsonSesiones?: Record<string, unknown>;
+}
+
+export interface InvestigacionSesion {
+  id?: string;
+  curso_id: string;
+  numero_sesion: number;
+  tema_sesion: string;
+  contenido_investigacion: string;
+  estado: 'pendiente' | 'procesando' | 'completada' | 'error';
+  fecha_investigacion: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ComparacionSesion {
+  id?: string;
+  curso_id: string;
+  numero_sesion: number;
+  investigacion_id: string;
+  documento1_url?: string;
+  documento1_nombre?: string;
+  documento2_url?: string;
+  documento2_nombre?: string;
+  resultado_comparacion?: string;
+  estado: 'pendiente' | 'procesando' | 'completada' | 'error';
+  fecha_comparacion: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ActividadSesion {
+  id?: string;
+  curso_id: string;
+  numero_sesion: number;
+  texto_actividad_original?: string;
+  propuesta_actividad?: string;
+  estado: 'pendiente' | 'procesando' | 'completada' | 'error';
+  fecha_creacion: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface CursoConRevision extends Curso {

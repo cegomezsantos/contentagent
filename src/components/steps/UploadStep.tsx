@@ -53,6 +53,37 @@ export default function UploadStep({ onSuccess, onNext }: UploadStepProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    // Validar que todos los campos obligatorios estén completos
+    if (!formData.nombre_curso.trim()) {
+      toast.error('El nombre del curso es obligatorio');
+      return;
+    }
+    
+    if (!formData.cuenta) {
+      toast.error('La cuenta es obligatoria');
+      return;
+    }
+    
+    if (!formData.codigo.trim()) {
+      toast.error('El código es obligatorio');
+      return;
+    }
+    
+    if (!formData.version.trim()) {
+      toast.error('La versión es obligatoria');
+      return;
+    }
+    
+    if (!formData.fecha_entrega) {
+      toast.error('La fecha de entrega es obligatoria');
+      return;
+    }
+    
+    if (!formData.archivo) {
+      toast.error('El archivo es obligatorio');
+      return;
+    }
+    
     // Validar versión
     const version = parseInt(formData.version);
     if (isNaN(version) || version < 1 || version > 10) {
@@ -67,20 +98,31 @@ export default function UploadStep({ onSuccess, onNext }: UploadStepProps) {
       return;
     }
 
-    if (!formData.archivo) {
-      toast.error('Por favor selecciona un archivo');
-      return;
-    }
-
     setLoading(true);
     try {
       const fileExt = formData.archivo.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
+      // Crear nombre personalizado: [Código-NOMBRE_DEL_CURSO_EN_MAYÚSCULAS__SILABO.extension]
+      // Normalizar caracteres especiales (ñ, acentos, etc.)
+      const nombreCursoLimpio = formData.nombre_curso
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Quitar acentos
+        .replace(/[^a-zA-Z0-9\s]/g, '') // Quitar caracteres especiales
+        .replace(/\s+/g, '_') // Reemplazar espacios con guiones bajos
+        .toUpperCase();
+      
+      const nombrePersonalizado = `${formData.codigo}-${nombreCursoLimpio}__SILABO.${fileExt}`;
+      const fileName = `${Date.now()}_${nombrePersonalizado}`;
+      
+      console.log('Nombre del archivo generado:', fileName); // Para debugging
+      
       const { error: uploadError, data } = await supabase.storage
         .from('archivos')
         .upload(fileName, formData.archivo);
 
-      if (uploadError) throw uploadError;
+      if (uploadError) {
+        console.error('Error de Supabase Storage:', uploadError);
+        throw uploadError;
+      }
 
       const { error: insertError } = await supabase.from('cursos').insert([
         {
@@ -88,15 +130,19 @@ export default function UploadStep({ onSuccess, onNext }: UploadStepProps) {
           version: parseInt(formData.version),
           fecha_entrega: formData.fecha_entrega,
           archivo_url: data.path,
-          archivo_nombre: formData.archivo.name,
+          archivo_nombre: nombrePersonalizado, // Guardar el nombre personalizado
           cuenta: formData.cuenta,
           codigo: formData.codigo,
         },
       ]);
 
       if (insertError) {
-        console.error('Error al insertar curso:', insertError.message, insertError.details);
-        throw new Error(`Error al insertar curso: ${insertError.message}`);
+        console.error('Error al insertar curso:', insertError);
+        // Si hay error en la inserción, eliminar el archivo subido
+        if (data?.path) {
+          await supabase.storage.from('archivos').remove([data.path]);
+        }
+        throw new Error(`Error al guardar en base de datos: ${insertError.message}`);
       }
 
       toast.success('Curso subido exitosamente');
@@ -110,9 +156,19 @@ export default function UploadStep({ onSuccess, onNext }: UploadStepProps) {
       });
       onSuccess();
       onNext();
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error(error instanceof Error ? error.message : 'Error al subir el curso');
+    } catch (error: any) {
+      console.error('Error completo:', error);
+      
+      // Mostrar error más específico
+      if (error.message?.includes('storage')) {
+        toast.error(`Error al subir archivo: ${error.message}`);
+      } else if (error.message?.includes('base de datos')) {
+        toast.error(`Error en base de datos: ${error.message}`);
+      } else if (error.message?.includes('código')) {
+        toast.error(`Error de validación: ${error.message}`);
+      } else {
+        toast.error(`Error al subir el curso: ${error.message || 'Error desconocido'}`);
+      }
     } finally {
       setLoading(false);
     }

@@ -2,10 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { CursoConRevision, RevisionSilabo, AnalisisResultado, SesionTema } from '@/types';
+
+interface SesionJSON {
+  numero_sesion: number;
+  tema_principal: string;
+  subtemas?: string[];
+  actividad?: string;
+  recursos?: string[];
+  evaluacion?: string;
+  duracion_horas?: string;
+}
 import { supabase } from '@/lib/supabase';
 import toast from 'react-hot-toast';
 import MarkdownRenderer from '@/components/MarkdownRenderer';
-// @ts-ignore
 import mammoth from 'mammoth';
 
 interface RevisionStepProps {
@@ -18,6 +27,9 @@ export default function RevisionStep({ cursos }: RevisionStepProps) {
   const [analizando, setAnalizando] = useState(false);
   const [resultado, setResultado] = useState<AnalisisResultado | null>(null);
   const [procesandoDecision, setProcesandoDecision] = useState(false);
+  const [informeMostrado, setInformeMostrado] = useState<string | null>(null);
+  const [jsonMostrado, setJsonMostrado] = useState<Record<string, unknown> | null>(null);
+  const [tipoContenidoMostrado, setTipoContenidoMostrado] = useState<'informe' | 'json' | null>(null);
 
   useEffect(() => {
     cargarCursosConRevision();
@@ -30,6 +42,8 @@ export default function RevisionStep({ cursos }: RevisionStepProps) {
         .from('revision_silabus')
         .select('*');
 
+      console.log('🔍 Revisiones cargadas:', revisiones);
+
       if (error) {
         console.error('Error cargando revisiones:', error);
         toast.error('Error al cargar el estado de revisiones');
@@ -39,12 +53,14 @@ export default function RevisionStep({ cursos }: RevisionStepProps) {
       // Combinar cursos con sus revisiones
       const cursosConEstado = cursos.map(curso => {
         const revision = revisiones?.find(r => r.curso_id === curso.id);
+        console.log(`🔍 Curso ${curso.nombre_curso} - Revisión:`, revision);
         return {
           ...curso,
           revision: revision || undefined
         };
       });
 
+      console.log('🔍 Cursos con estado final:', cursosConEstado);
       setCursosConRevision(cursosConEstado);
     } catch (error) {
       console.error('Error:', error);
@@ -121,142 +137,207 @@ export default function RevisionStep({ cursos }: RevisionStepProps) {
         console.warn('El documento no parece contener información típica de un sílabo');
       }
 
-      // Primer análisis: Revisión general del sílabo (prompt optimizado del usuario)
-      const promptRevision = `Rol
-Actúa como un experto en diseño curricular con amplia experiencia en la elaboración y evaluación de programas de nivel superior, especializado en la metodología «Aprende Haciendo» y en la ingeniería de prompts.
+      // Primer análisis: Informe completo del contenido del sílabo
+      const promptInforme = `Eres un experto evaluador de sílabos universitarios con amplia experiencia en diseño curricular y metodología "Aprende Haciendo".
 
-Tarea
-Analiza el sílabo que proporcionará el usuario exclusivamente en las secciones:
-Objetivo general
-Objetivos específicos
-Contenidos (incluye temas, actividades/evaluación, secuencia y carga)
-"Software y recursos educativos utilizados" (si existe en el sílabo)
-Bibliografía
-No analices Metodología ni Evaluación (ignóralas por completo).
+**INSTRUCCIÓN PRINCIPAL:**
+Analiza exhaustivamente el sílabo proporcionado y genera un informe completo y estructurado del contenido. Este informe debe ser profesional, detallado y útil para la toma de decisiones académicas.
 
-🛑 No debes re-escribir el sílabo; solo emite observaciones y recomendaciones sobre los aspectos que requieran mejora.
+**ESTRUCTURA OBLIGATORIA DEL INFORME:**
 
-FORMATO DEL INFORME – «Informe de Observaciones»
-Entrega las secciones en el orden que sigue.
-En cada una:
+# INFORME DE ANÁLISIS DE SÍLABO
 
-Si no hay problemas, escribe (Sin observaciones).
+## 1. INFORMACIÓN GENERAL
+- Nombre del curso: [extraer del documento]
+- Código del curso: [extraer del documento]
+- Duración/créditos: [extraer del documento]
+- Modalidad: [extraer del documento]
 
-Si existen problemas, enumera observaciones concisas en viñetas (máx. 3 líneas por viñeta).
+## 2. ANÁLISIS DE OBJETIVOS
 
-Objetivo general
-Conjugación y verbo (infinitivo / 2.ª persona).
-Acción-conocimiento-contexto: precisión y pertinencia.
-Verbo adecuado según taxonomías reconocidas (ej. Bloom, Marzano).
+### Objetivo General
+- **Contenido:** [transcribir objetivo general]
+- **Evaluación:** [analizar si está bien formulado, usa verbos apropiados, es medible y alcanzable]
+- **Observaciones:** [sugerencias de mejora si las hay]
 
-Objetivos específicos
-Producto observable / aprendizaje tangible.
-Verbos accionables («Aplicar», «Demostrar», «Evaluar», «Crear», etc.).
-Orden lógico de progresión (simple → complejo).
-Alineación directa con el Objetivo General.
+### Objetivos Específicos
+- **Cantidad:** [número de objetivos específicos]
+- **Contenido:** [listar cada objetivo específico]
+- **Evaluación:** [analizar alineación con objetivo general, progresión lógica, verbos de acción]
+- **Observaciones:** [sugerencias de mejora si las hay]
 
-Contenidos
-Extracción de Temas y Actividades por Sesión:
-Antes de cualquier análisis de la sección "Contenidos", primero extrae y presenta la siguiente información para CADA sesión encontrada en la tabla 'CONTENIDOS' del sílabo, utilizando el siguiente formato exacto para cada una:
+## 3. ANÁLISIS DE CONTENIDOS
 
-**SESIÓN [Número de Sesión]**
-**TEMA:**
-[Contenido completo de la columna 'TEMA' para esta sesión, incluyendo subpuntos numerados si los hay]
-**ACTIVIDAD/EVALUACIÓN:**
-[Contenido completo de la columna 'ACTIVIDAD/EVALUACIÓN' para esta sesión, incluyendo 'Producto buscado' si lo hay]
+### Estructura Temática
+- **Número total de sesiones/temas:** [cantidad]
+- **Distribución temporal:** [análisis de la carga horaria]
+- **Secuencia lógica:** [evaluación del orden de los temas]
+
+### Cobertura de Objetivos
+- **Alineación:** [análisis de cómo los contenidos cubren los objetivos]
+- **Gaps identificados:** [temas faltantes o desalineados]
+- **Redundancias:** [contenidos repetitivos si existen]
+
+## 4. METODOLOGÍA Y RECURSOS
+
+### Software y Herramientas
+- **Herramientas mencionadas:** [listar software/herramientas]
+- **Adecuación:** [análisis de pertinencia para los objetivos]
+- **Observaciones:** [sugerencias adicionales]
+
+### Recursos Educativos
+- **Materiales didácticos:** [análisis de recursos mencionados]
+- **Diversidad de recursos:** [evaluación de variedad]
+- **Actualización:** [comentarios sobre vigencia]
+
+## 5. BIBLIOGRAFÍA
+
+### Análisis Cuantitativo
+- **Número de referencias:** [cantidad total]
+- **Tipos de fuentes:** [libros, artículos, web, etc.]
+- **Idiomas:** [distribución por idioma]
+
+### Análisis Cualitativo
+- **Actualización:** [años de las fuentes más recientes y antiguas]
+- **Relevancia:** [pertinencia temática]
+- **Formato:** [adherencia a normas de citación]
+- **Observaciones:** [sugerencias de mejora]
+
+## 6. EVALUACIÓN GENERAL
+
+### Fortalezas Identificadas
+- [Listar aspectos positivos del sílabo]
+
+### Áreas de Mejora
+- [Listar aspectos que requieren mejora]
+
+### Recomendaciones Prioritarias
+1. [Recomendación más importante]
+2. [Segunda recomendación]
+3. [Tercera recomendación]
+
+## 7. CONCLUSIÓN
+[Evaluación general del sílabo y recomendación final]
+
 ---
-(Repetir este bloque para cada sesión)
 
-Análisis de Contenidos:
-Correspondencia Objetivos Específicos ↔ Contenidos (Temas y Actividades/Evaluación extraídos): escribe antes de cualquier tabla uno de los tres veredictos exactamente así: correcta / parcial / incorrecta.
-Si el veredicto es parcial o incorrecta, añade solo las actividades/temas mal vinculados o ausentes, o los objetivos no cubiertos, en la siguiente tabla:
-[Objetivo(s) Específico(s) afectado(s)] | [Problema detectado en Tema o Actividad/Evaluación (o ausencia de cobertura)]
-Adecuación de la división en sesiones y la distribución de subtemas para cubrir los objetivos.
-Secuencia temática y carga horaria (densidad aparente de contenidos por sesión en relación con las horas cronológicas del curso).
-Pertinencia y claridad de las "Actividades/Evaluación" y "Productos buscados" para cada sesión, y su contribución al logro de los objetivos específicos.
-
-Software y recursos educativos utilizados
-Presencia y formato (si la sección existe en el sílabo; si no, indicar "Sección no encontrada en el sílabo").
-Cobertura de herramientas críticas para los contenidos y actividades, y si se especifican versiones o alternativas.
-
-Bibliografía
-Formato (verificar si se aproxima a APA 7 u otro estándar consistente).
-Actualización (presencia de fuentes recientes, idealmente de los últimos 5-7 años, aunque se valora la relevancia de clásicos si aplica).
-Cobertura temática suficiente y pertinente en relación con los contenidos del curso.
-
-Reglas de estilo
-Sé directo, profesional y específico.
-No incluyas frases elogiosas ni textos superfluos.
-Evita escribir «Está correcto»; si algo no requiere mejora, usa la etiqueta (Sin observaciones).
-Mantén viñetas claras y tablas donde se indiquen.
-Usa fechas absolutas (ej. "26 de mayo de 2025") solo si es estrictamente necesario para la claridad de una recomendación.
-Todas las sugerencias deben ser concretas y accionables.
-
-DOCUMENTO A ANALIZAR:
+**DOCUMENTO A ANALIZAR:**
 ${documentoTexto}`;
 
-      // Segundo análisis: Extracción simple de sesiones (sin JSON para evitar errores)
-      const promptSesiones = `Extrae únicamente los temas/contenidos principales del siguiente documento de sílabo.
+      // Segundo análisis: Extracción de JSON estructurado de sesiones
+      const promptJSON = `Eres un experto en extracción y estructuración de información académica. Tu única tarea es extraer los temas y actividades de cada sesión del sílabo y convertirlos a formato JSON estructurado.
 
-Lista cada sesión que encuentres con el formato:
-SESIÓN 1: [tema principal]
-SESIÓN 2: [tema principal]
-etc.
+**INSTRUCCIONES ESPECÍFICAS:**
 
-Si no encuentras sesiones numeradas, lista los temas principales que identifiques.
+1. Busca en el documento la sección de CONTENIDOS, tabla de sesiones, o cualquier estructura que liste las sesiones del curso
+2. Para cada sesión identificada, extrae EXACTAMENTE como aparece en el documento:
+   - Número de sesión
+   - Tema(s) principal(es) 
+   - Subtemas (si existen)
+   - **ACTIVIDAD COMPLETA**: Todo el contenido de la celda/sección de actividades tal como aparece
+   - Recursos utilizados
+   - Evaluaciones mencionadas
 
-DOCUMENTO:
+3. **FORMATO JSON OBLIGATORIO:**
+\`\`\`json
+{
+  "metadatos": {
+    "total_sesiones": [número total de sesiones],
+    "fecha_extraccion": "${new Date().toISOString()}",
+    "curso": "[nombre del curso extraído]"
+  },
+  "sesiones": [
+    {
+      "numero_sesion": 1,
+      "tema_principal": "[tema principal de la sesión]",
+      "subtemas": [
+        "[subtema 1]",
+        "[subtema 2]"
+      ],
+      "actividad": "[CONTENIDO COMPLETO de la celda/sección de actividades tal como aparece en el documento, incluyendo descripciones, foros, productos esperados, etc.]",
+      "recursos": [
+        "[recurso 1]",
+        "[recurso 2]"
+      ],
+      "evaluacion": "[información de evaluación si está especificada]",
+      "duracion_horas": "[horas si está especificado]"
+    }
+  ]
+}
+\`\`\`
+
+4. **REGLAS CRÍTICAS PARA ACTIVIDADES:**
+   - En el campo "actividad", copia TODA la información de la celda de actividades
+   - Si hay información como "Actividad 1 (Individual)", "Foro:", "Descripción:", etc., inclúyelo COMPLETO
+   - Si menciona "Producto buscado:", inclúyelo textualmente
+   - NO fragmentes ni separes la información de actividades
+   - Si una actividad tiene múltiples párrafos, inclúyelos todos en un solo string
+
+5. **REGLAS GENERALES:**
+   - Si no encuentras información específica para algún campo, úsalo como string vacío "" o array vacío []
+   - Mantén el texto original sin modificar
+   - No inventes información que no esté en el documento
+   - Asegúrate de que el JSON sea válido
+   - Si no hay sesiones claras, extrae temas generales como sesiones numeradas
+
+**RESPONDE ÚNICAMENTE CON EL JSON, SIN TEXTO ADICIONAL**
+
+**DOCUMENTO A ANALIZAR:**
 ${documentoTexto}`;
 
       // Hacer las llamadas a DeepSeek API
       console.log('🔄 Iniciando análisis con DeepSeek API...');
       
-      const [analisisGeneral, analisisSesiones] = await Promise.all([
-        realizarAnalisis(promptRevision),
-        realizarAnalisis(promptSesiones)
+      const [informeCompleto, sesionesJSON] = await Promise.all([
+        realizarAnalisis(promptInforme),
+        realizarAnalisis(promptJSON)
       ]);
 
       console.log('✅ Análisis completados exitosamente');
 
-      // Procesar respuesta de sesiones
+      // Procesar respuesta de sesiones JSON
       let sesionesData: SesionTema[] = [];
+      let jsonEstructurado = null;
+      
       try {
-        // Intentar procesar como texto simple (formato: SESIÓN X: tema)
-        const lineasSesiones = analisisSesiones.split('\n').filter(linea => linea.trim());
+        // Intentar parsear como JSON
+        const jsonLimpio = sesionesJSON.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        jsonEstructurado = JSON.parse(jsonLimpio);
         
-        lineasSesiones.forEach((linea, index) => {
-          const match = linea.match(/SESIÓN\s*(\d+):\s*(.+)/i);
-          if (match) {
-            sesionesData.push({
-              sesion: `Sesión ${match[1]}`,
-              temas: [match[2].trim()]
-            });
-          } else if (linea.trim() && !linea.includes(':')) {
-            // Si es solo un tema sin formato de sesión
-            sesionesData.push({
-              sesion: `Tema ${index + 1}`,
-              temas: [linea.trim()]
-            });
-          }
-        });
+        // Convertir a formato interno si es necesario
+        if (jsonEstructurado.sesiones && Array.isArray(jsonEstructurado.sesiones)) {
+          sesionesData = jsonEstructurado.sesiones.map((sesion: SesionJSON) => ({
+            sesion: `Sesión ${sesion.numero_sesion}`,
+            temas: [
+              sesion.tema_principal,
+              ...(sesion.subtemas || []),
+              ...(sesion.actividad ? [sesion.actividad] : []),
+              ...(sesion.evaluacion ? [sesion.evaluacion] : [])
+            ].filter(Boolean)
+          }));
+        }
         
-        console.log('📚 Sesiones procesadas:', sesionesData.length);
+        console.log('📚 JSON procesado correctamente:', jsonEstructurado);
       } catch (error) {
-        console.error('❌ Error procesando sesiones:', error);
-        console.log('📄 Respuesta de sesiones original:', analisisSesiones);
+        console.error('❌ Error procesando JSON:', error);
+        console.log('📄 Respuesta JSON original:', sesionesJSON);
         // Si hay error, mantener un array vacío
         sesionesData = [];
+        jsonEstructurado = { error: "Error al procesar JSON", raw: sesionesJSON };
       }
 
-      // Dividir el análisis general en secciones
-      const secciones = analisisGeneral.split('\n\n');
+      // El resultado ahora incluye tanto el informe como el JSON
       const resultadoFinal: AnalisisResultado = {
-        objetivoGeneral: extraerSeccion(secciones, 'Objetivo general') || '(Sin observaciones)',
-        objetivosEspecificos: extraerSeccion(secciones, 'Objetivos específicos') || '(Sin observaciones)',
-        contenidos: extraerSeccion(secciones, 'Contenidos') || '(Sin observaciones)',
-        softwareRecursos: extraerSeccion(secciones, 'Software y recursos educativos utilizados') || '(Sin observaciones)',
-        bibliografia: extraerSeccion(secciones, 'Bibliografía') || '(Sin observaciones)',
-        sesiones: sesionesData
+        // Para mantener compatibilidad, dividimos el informe
+        objetivoGeneral: informeCompleto.substring(0, informeCompleto.length / 5),
+        objetivosEspecificos: informeCompleto.substring(informeCompleto.length / 5, informeCompleto.length * 2 / 5),
+        contenidos: informeCompleto.substring(informeCompleto.length * 2 / 5, informeCompleto.length * 3 / 5),  
+        softwareRecursos: informeCompleto.substring(informeCompleto.length * 3 / 5, informeCompleto.length * 4 / 5),
+        bibliografia: informeCompleto.substring(informeCompleto.length * 4 / 5),
+        sesiones: sesionesData,
+        // Nuevos campos para los productos solicitados
+        informeCompleto: informeCompleto,
+        jsonSesiones: jsonEstructurado
       };
 
       setResultado(resultadoFinal);
@@ -301,9 +382,155 @@ ${documentoTexto}`;
     return data.result;
   };
 
-  const extraerSeccion = (secciones: string[], nombreSeccion: string): string => {
-    const seccion = secciones.find(s => s.toLowerCase().includes(nombreSeccion.toLowerCase()));
-    return seccion || '';
+
+
+  // Función para descargar el informe como archivo de texto
+  const descargarInforme = () => {
+    if (!resultado || !cursoSeleccionado) {
+      toast.error('No hay informe para descargar');
+      return;
+    }
+
+    const informeTexto = resultado.informeCompleto || `
+# Informe de Revisión de Sílabo
+
+**Curso:** ${cursoSeleccionado.nombre_curso}
+**Código:** ${cursoSeleccionado.codigo}
+**Fecha de Revisión:** ${new Date().toLocaleDateString('es-ES')}
+
+${resultado.objetivoGeneral}
+
+${resultado.objetivosEspecificos}
+
+${resultado.contenidos}
+
+${resultado.softwareRecursos}
+
+${resultado.bibliografia}
+    `.trim();
+
+    const blob = new Blob([informeTexto], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `informe_silabo_${cursoSeleccionado.codigo}_${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('📄 Informe descargado exitosamente');
+  };
+
+  // Función para descargar el JSON de sesiones
+  const descargarJSON = () => {
+    if (!resultado || !cursoSeleccionado) {
+      toast.error('No hay datos JSON para descargar');
+      return;
+    }
+
+    const jsonData = resultado.jsonSesiones || {
+      metadatos: {
+        total_sesiones: resultado.sesiones.length,
+        fecha_extraccion: new Date().toISOString(),
+        curso: cursoSeleccionado.nombre_curso,
+        codigo: cursoSeleccionado.codigo
+      },
+      sesiones: resultado.sesiones.map((sesion, index) => ({
+        numero_sesion: index + 1,
+        tema_principal: sesion.temas[0] || '',
+        subtemas: sesion.temas.slice(1),
+        actividades_aprendizaje: [],
+        actividades_evaluacion: [],
+        recursos: []
+      }))
+    };
+
+    const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sesiones_${cursoSeleccionado.codigo}_${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    toast.success('📁 JSON descargado exitosamente');
+  };
+
+  // Función para mostrar informe guardado desde base de datos
+  const mostrarInformeGuardado = async (curso: CursoConRevision) => {
+    if (!curso.revision) {
+      toast.error('No hay informe guardado para este curso');
+      return;
+    }
+
+    try {
+      // Obtener datos completos de la revisión
+      const { data: revision, error } = await supabase
+        .from('revision_silabus')
+        .select('*')
+        .eq('id', curso.revision.id)
+        .single();
+
+      if (error) {
+        console.error('Error obteniendo revisión:', error);
+        toast.error('Error al obtener el informe guardado');
+        return;
+      }
+
+      // Usar el informe completo si está disponible, sino usar el informe_revision
+      const contenidoInforme = revision.informe_completo || revision.informe_revision;
+      
+      // Mostrar el informe en la página
+      setInformeMostrado(contenidoInforme);
+      setTipoContenidoMostrado('informe');
+      setCursoSeleccionado(curso);
+      
+      toast.success('📄 Informe mostrado exitosamente');
+    } catch (error) {
+      console.error('Error obteniendo informe:', error);
+      toast.error('Error al obtener el informe');
+    }
+  };
+
+  // Función para mostrar JSON guardado desde base de datos
+  const mostrarJSONGuardado = async (curso: CursoConRevision) => {
+    if (!curso.revision) {
+      toast.error('No hay datos JSON guardados para este curso');
+      return;
+    }
+
+    try {
+      // Obtener datos completos de la revisión
+      const { data: revision, error } = await supabase
+        .from('revision_silabus')
+        .select('*')
+        .eq('id', curso.revision.id)
+        .single();
+
+      if (error) {
+        console.error('Error obteniendo revisión:', error);
+        toast.error('Error al obtener los datos JSON guardados');
+        return;
+      }
+
+      if (!revision.json_sesiones) {
+        toast.error('No hay datos JSON disponibles para este curso');
+        return;
+      }
+
+      // Mostrar el JSON en la página
+      setJsonMostrado(revision.json_sesiones);
+      setTipoContenidoMostrado('json');
+      setCursoSeleccionado(curso);
+      
+      toast.success('📁 JSON mostrado exitosamente');
+    } catch (error) {
+      console.error('Error obteniendo JSON:', error);
+      toast.error('Error al obtener el JSON');
+    }
   };
 
   const procesarDecision = async (aprobado: boolean) => {
@@ -315,8 +542,8 @@ ${documentoTexto}`;
     setProcesandoDecision(true);
 
     try {
-      // Crear el informe completo
-      const informeCompleto = `
+      // Usar el informe completo si está disponible, sino crear uno
+      const informeCompleto = resultado.informeCompleto || `
 # Informe de Revisión de Sílabo
 
 **Curso:** ${cursoSeleccionado.nombre_curso}
@@ -348,13 +575,34 @@ ${sesion.temas.map(tema => `- ${tema}`).join('\n')}
 ` : ''}
       `.trim();
 
-      // Guardar en la base de datos
+      // Preparar datos JSON para guardar
+      const jsonSesiones = resultado.jsonSesiones || {
+        metadatos: {
+          total_sesiones: resultado.sesiones.length,
+          fecha_extraccion: new Date().toISOString(),
+          curso: cursoSeleccionado.nombre_curso,
+          codigo: cursoSeleccionado.codigo
+        },
+        sesiones: resultado.sesiones.map((sesion, index) => ({
+          numero_sesion: index + 1,
+          tema_principal: sesion.temas[0] || '',
+          subtemas: sesion.temas.slice(1),
+          actividad: sesion.temas.find(t => t.toLowerCase().includes('actividad')) || '',
+          recursos: [],
+          evaluacion: sesion.temas.find(t => t.toLowerCase().includes('evaluacion')) || '',
+          duracion_horas: ''
+        }))
+      };
+
+      // Guardar en la base de datos con los nuevos campos
       const { error } = await supabase
         .from('revision_silabus')
-        .upsert({
+        .insert({
           curso_id: cursoSeleccionado.id,
           estado: aprobado ? 'aprobado' : 'desaprobado',
           informe_revision: informeCompleto,
+          informe_completo: resultado.informeCompleto || informeCompleto, // Nuevo campo
+          json_sesiones: jsonSesiones, // Nuevo campo
           revisor: 'Sistema IA', // Puedes cambiar esto por el usuario actual
           observaciones: aprobado ? 'Sílabo aprobado automáticamente' : 'Sílabo requiere mejoras'
         });
@@ -367,10 +615,8 @@ ${sesion.temas.map(tema => `- ${tema}`).join('\n')}
 
       toast.success(`Sílabo ${aprobado ? 'aprobado' : 'desaprobado'} exitosamente`);
       
-      // Recargar datos y limpiar estado
+      // Recargar datos pero mantener el curso seleccionado para seguir viendo el resultado
       await cargarCursosConRevision();
-      setCursoSeleccionado(null);
-      setResultado(null);
 
     } catch (error) {
       console.error('Error procesando decisión:', error);
@@ -420,23 +666,22 @@ ${sesion.temas.map(tema => `- ${tema}`).join('\n')}
               </div>
               <div className="flex items-center gap-2">
                 {curso.revision && (
-                  <button
-                    onClick={() => {
-                      setCursoSeleccionado(curso);
-                      // Mostrar informe existente
-                      setResultado({
-                        objetivoGeneral: 'Informe guardado',
-                        objetivosEspecificos: 'Informe guardado',
-                        contenidos: 'Informe guardado',
-                        softwareRecursos: 'Informe guardado',
-                        bibliografia: 'Informe guardado',
-                        sesiones: []
-                      });
-                    }}
-                    className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded-md hover:bg-blue-200 transition-colors"
-                  >
-                    Ver Informe
-                  </button>
+                  <>
+                    <button
+                      onClick={() => mostrarInformeGuardado(curso)}
+                      className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-md hover:bg-green-200 transition-colors"
+                      title="Ver informe guardado"
+                    >
+                      📄 Informe
+                    </button>
+                    <button
+                      onClick={() => mostrarJSONGuardado(curso)}
+                      className="px-3 py-1 text-sm bg-purple-100 text-purple-700 rounded-md hover:bg-purple-200 transition-colors"
+                      title="Ver JSON guardado"
+                    >
+                      📁 JSON
+                    </button>
+                  </>
                 )}
                 <button
                   onClick={() => analizarSilabo(curso)}
@@ -451,11 +696,47 @@ ${sesion.temas.map(tema => `- ${tema}`).join('\n')}
         </div>
       </div>
 
+      {/* Mostrar contenido guardado cuando se hace clic en los botones */}
+      {tipoContenidoMostrado && cursoSeleccionado && (
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <div className="flex justify-between items-center mb-6">
+            <h3 className="text-xl font-bold text-gray-900">
+              {tipoContenidoMostrado === 'informe' ? '📋 Informe Guardado' : '📁 JSON Guardado'}
+            </h3>
+            <button
+              onClick={() => {
+                setTipoContenidoMostrado(null);
+                setInformeMostrado(null);
+                setJsonMostrado(null);
+                setCursoSeleccionado(null);
+              }}
+              className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              ✕ Cerrar
+            </button>
+          </div>
+          
+          {tipoContenidoMostrado === 'informe' && informeMostrado && (
+            <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+              <MarkdownRenderer content={informeMostrado} />
+            </div>
+          )}
+          
+          {tipoContenidoMostrado === 'json' && jsonMostrado && (
+            <div className="bg-gray-50 p-4 rounded-lg max-h-96 overflow-y-auto">
+              <pre className="text-sm text-gray-700 whitespace-pre-wrap">
+                {JSON.stringify(jsonMostrado, null, 2)}
+              </pre>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Resultados del análisis */}
-      {resultado && cursoSeleccionado && (
+      {resultado && cursoSeleccionado && !tipoContenidoMostrado && (
         <div className="space-y-6">
           {/* Mostrar informe existente o nuevo análisis */}
-          {cursoSeleccionado.revision ? (
+          {cursoSeleccionado.revision && resultado.objetivoGeneral === 'Informe guardado' ? (
             <div className="bg-white rounded-lg shadow p-6">
               <h3 className="text-xl font-bold text-gray-900 mb-6">📋 Informe de Revisión Guardado</h3>
               <div className="bg-gray-50 p-4 rounded-lg">
@@ -466,7 +747,25 @@ ${sesion.temas.map(tema => `- ${tema}`).join('\n')}
             <>
               {/* Informe de Observaciones */}
               <div className="bg-white rounded-lg shadow p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-6">📋 Informe de Observaciones</h3>
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="text-xl font-bold text-gray-900">📋 Informe de Observaciones</h3>
+                  
+                  {/* Botones de descarga */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={descargarInforme}
+                      className="px-4 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700 transition-colors flex items-center gap-2"
+                    >
+                      📄 Descargar Informe
+                    </button>
+                    <button
+                      onClick={descargarJSON}
+                      className="px-4 py-2 bg-green-600 text-white text-sm rounded-md hover:bg-green-700 transition-colors flex items-center gap-2"
+                    >
+                      📁 Descargar JSON
+                    </button>
+                  </div>
+                </div>
                 
                 <div className="space-y-6">
                   <div>
@@ -540,6 +839,24 @@ ${sesion.temas.map(tema => `- ${tema}`).join('\n')}
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* JSON Estructurado */}
+              {resultado.jsonSesiones && (
+                <div className="bg-white rounded-lg shadow p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-6">🔧 JSON Estructurado de Sesiones</h3>
+                  <div className="bg-gray-50 p-4 rounded-lg overflow-x-auto">
+                    <pre className="text-sm text-gray-700">
+                      {typeof resultado.jsonSesiones === 'object' 
+                        ? JSON.stringify(resultado.jsonSesiones, null, 2)
+                        : resultado.jsonSesiones
+                      }
+                    </pre>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Este JSON contiene la estructura detallada de todas las sesiones con sus temas, actividades y recursos.
+                  </p>
                 </div>
               )}
             </>

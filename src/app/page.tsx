@@ -37,17 +37,41 @@ export default function Home() {
   }, []);
 
   const fetchCursos = async () => {
-    const { data, error } = await supabase
-      .from('cursos')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      // Obtener cursos
+      const { data: cursosData, error: cursosError } = await supabase
+        .from('cursos')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching cursos:', error);
-      return;
+      if (cursosError) {
+        console.error('Error fetching cursos:', cursosError);
+        return;
+      }
+
+      // Obtener todas las revisiones
+      const { data: revisiones, error: revisionesError } = await supabase
+        .from('revision_silabus')
+        .select('*');
+
+      if (revisionesError) {
+        console.error('Error fetching revisiones:', revisionesError);
+      }
+
+      // Combinar cursos con sus revisiones
+      const cursosConRevision: CursoConRevision[] = (cursosData || []).map(curso => {
+        const revision = revisiones?.find(r => r.curso_id === curso.id);
+        return {
+          ...curso,
+          revision: revision || undefined
+        };
+      });
+
+      console.log('📚 Cursos cargados con revisiones:', cursosConRevision); // LOG para debug
+      setCursos(cursosConRevision);
+    } catch (error) {
+      console.error('Error en fetchCursos:', error);
     }
-
-    setCursos(data || []);
   };
 
   const renderActiveTab = () => {
@@ -64,11 +88,11 @@ export default function Home() {
       case 'revision':
         return <RevisionStep cursos={cursos} />;
       case 'investigacion':
-        return <InvestigacionStep cursos={cursos} />;
+        return <InvestigacionStep cursos={cursos} onRefresh={fetchCursos} />;
       case 'comparacion':
-        return <ComparacionStep cursos={cursos} />;
+        return <ComparacionStep cursos={cursos} onRefresh={fetchCursos} />;
       case 'actividades':
-        return <ActividadesStep cursos={cursos} />;
+        return <ActividadesStep cursos={cursos} onRefresh={fetchCursos} />;
       case 'ppt':
         return <PPTStep cursos={cursos} />;
       case 'revisores':

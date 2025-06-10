@@ -24,3 +24,28 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Estilos para asegurar texto negro */
+.text-black-custom {
+  color: #000000 !important;
+}
+
+/* Override para inputs y textareas */
+input, textarea, select {
+  color: #000000 !important;
+}
+
+/* Override para texto en general */
+p, span, div, label, h1, h2, h3, h4, h5, h6 {
+  color: #000000;
+}
+
+/* Excepciones para elementos específicos */
+.text-white, .bg-blue-500, .bg-green-500, .bg-red-500, .bg-yellow-500 {
+  color: #ffffff !important;
+}
+
+/* Para mantener colores en botones específicos */
+button.bg-blue-500, button.bg-green-500, button.bg-red-500 {
+  color: #ffffff !important;
+}
